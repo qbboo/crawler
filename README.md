@@ -6,3 +6,9 @@
 - circleCI
 - PR
 - test
+## 思路
+### 需求分析
+![](https://cdn.jsdelivr.net/gh/qbboo/picture@main/uPic/2023_12_18_laeTRwfKMH3z.png)
+
+## 参考文章
+- [how-to-write-better-git-commit-messages](https://www.freecodecamp.org/news/how-to-write-better-git-commit-messages/)
