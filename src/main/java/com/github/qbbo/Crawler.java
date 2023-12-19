@@ -4,6 +4,7 @@ import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
@@ -12,6 +13,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -35,12 +37,12 @@ public class Crawler {
         while (!linkPool.isEmpty()) {
             String link = linkPool.removeFirst();
             if (hasFilterLinkPool(link)) {
-                System.out.printf("已访问: %s\n", link);
+                System.out.printf("已访问: %s%n", link);
                 continue;
             }
             filterLinkPool.add(link);
             if (!isNewsLink(link) && !isIndexLink(link)) {
-                System.out.printf("不符合要求的链接: %s\n", link);
+                System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
             }
             link = getCorrectSpellLink(link);
@@ -53,7 +55,7 @@ public class Crawler {
 
     private static void awaitTime() {
         try {
-            System.out.print("歇息3s \n");
+            System.out.print("歇息3s %n");
             Thread.sleep(3000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -62,13 +64,17 @@ public class Crawler {
 
     private Document getHtmlDocument(String link) {
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpGet require = new HttpGet(link);
-        require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
-        System.out.printf("开始访问link: %s \n", link);
-        try (CloseableHttpResponse response = httpclient.execute(require);) {
-            HttpEntity entity = response.getEntity();
-            return Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
-        } catch (IOException e) {
+        try {
+            HttpGet require = new HttpGet(new URIBuilder(link).build().toString());
+            require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
+            System.out.printf("开始访问link: %s %n", link);
+            try (CloseableHttpResponse response = httpclient.execute(require);) {
+                HttpEntity entity = response.getEntity();
+                return Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -77,8 +83,8 @@ public class Crawler {
         if (html.selectFirst("#content > article .entry-title") != null) {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
-            System.out.printf("新闻标题：%s \n", title);
-            System.out.printf("新闻内容：%s \n", content);
+            System.out.printf("新闻标题：%s %n", title);
+            System.out.printf("新闻内容：%s %n", content);
         }
     }
 
