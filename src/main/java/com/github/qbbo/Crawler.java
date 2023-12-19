@@ -1,5 +1,6 @@
 package com.github.qbbo;
 
+import com.mysql.cj.jdbc.Driver;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -15,22 +16,39 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Properties;
 
 public class Crawler {
-    private final LinkedList<String> linkPool = new LinkedList<>();
-    private final Set<String> filterLinkPool = new HashSet<>();
     private final String indexLink;
+    private LinkPool linkPool;
+    private FilterPool filterPool;
+    private News news;
 
     private Crawler(String indexLink) {
         this.indexLink = indexLink;
     }
     public static void start(String indexLink) {
-        Crawler crawler = new Crawler(indexLink);
-        crawler.linkPool.add(indexLink);
-        crawler.crawlerWebsite();
+        String db = "db";
+        String jdbc = "jdbc:mysql://xxx.xx.xxx.xxx/" + db;
+        Properties properties = new Properties();
+        properties.put("user", "root");
+        properties.put("password", "***********");
+
+        try (Connection connection = new Driver().connect(jdbc, properties);) {
+            Crawler crawler = new Crawler(indexLink);
+            crawler.linkPool = new LinkPool(connection);
+            crawler.filterPool = new FilterPool(connection);
+            crawler.news = new News(connection);
+
+            if (crawler.linkPool.isEmpty()) {
+                crawler.linkPool.insert(indexLink);
+            }
+            crawler.crawlerWebsite();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void crawlerWebsite() {
@@ -40,7 +58,7 @@ public class Crawler {
                 System.out.printf("已访问: %s%n", link);
                 continue;
             }
-            filterLinkPool.add(link);
+            filterPool.insert(link);
             if (!isNewsLink(link) && !isIndexLink(link)) {
                 System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
@@ -55,7 +73,7 @@ public class Crawler {
 
     private static void awaitTime() {
         try {
-            System.out.print("歇息3s %n");
+            System.out.print("歇息3s \n");
             Thread.sleep(3000);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
@@ -83,6 +101,9 @@ public class Crawler {
         if (html.selectFirst("#content > article .entry-title") != null) {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
+
+            news.insert(title, content, link);
+
             System.out.printf("新闻标题：%s %n", title);
             System.out.printf("新闻内容：%s %n", content);
         }
@@ -91,7 +112,7 @@ public class Crawler {
     private void storeInsertLinkPoolIfLinkIsWant(Elements aTags) {
         aTags.stream().map(aTag -> aTag.attr("href"))
                 .filter(link -> isNewsLink(link) && !hasFilterLinkPool(link) && !hasLinkPool(link))
-                .forEach(linkPool::add);
+                .forEach(linkPool::insert);
     }
 
     private String getCorrectSpellLink(String link) {
@@ -110,10 +131,10 @@ public class Crawler {
     }
 
     private boolean hasFilterLinkPool(String link) {
-        return filterLinkPool.contains(link);
+        return filterPool.has(link);
     }
     private boolean hasLinkPool(String link) {
-        return linkPool.contains(link);
+        return linkPool.has(link);
     }
 
 }
