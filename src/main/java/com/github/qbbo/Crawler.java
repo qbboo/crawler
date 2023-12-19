@@ -1,5 +1,7 @@
 package com.github.qbbo;
 
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
 import com.mysql.cj.jdbc.Driver;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
@@ -16,6 +18,8 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Properties;
@@ -30,13 +34,11 @@ public class Crawler {
         this.indexLink = indexLink;
     }
     public static void start(String indexLink) {
-        String db = "db";
-        String jdbc = "jdbc:mysql://xxx.xx.xxx.xxx/" + db;
+        ReadContext dbConfig = JsonPath.parse(readDBConfig("./db.config.json"));
         Properties properties = new Properties();
-        properties.put("user", "root");
-        properties.put("password", "***********");
-
-        try (Connection connection = new Driver().connect(jdbc, properties);) {
+        properties.put("user", dbConfig.read("$.user"));
+        properties.put("password", dbConfig.read("$.password"));
+        try (Connection connection = new Driver().connect(dbConfig.read("$.jdbc"), properties);) {
             Crawler crawler = new Crawler(indexLink);
             crawler.linkPool = new LinkPool(connection);
             crawler.filterPool = new FilterPool(connection);
@@ -47,6 +49,14 @@ public class Crawler {
             }
             crawler.crawlerWebsite();
         } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String readDBConfig(String file) {
+        try {
+            return  new String(Files.readAllBytes(Paths.get(file)), StandardCharsets.UTF_8);
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
