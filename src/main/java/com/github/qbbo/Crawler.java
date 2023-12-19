@@ -9,7 +9,6 @@ import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
@@ -20,53 +19,61 @@ import java.util.Set;
 
 public class Crawler {
     private final LinkedList<String> linkPool = new LinkedList<>();
-    private final Set<String> visitedLinkPool = new HashSet<>();
-    private final String entryLink;
+    private final Set<String> filterLinkPool = new HashSet<>();
+    private final String indexLink;
 
-    public Crawler(String entryLink) {
-        this.entryLink = entryLink;
+    private Crawler(String indexLink) {
+        this.indexLink = indexLink;
     }
-
-    public void start() {
-        linkPool.add(entryLink);
-        crawlerWebsite();
+    public static void start(String indexLink) {
+        Crawler crawler = new Crawler(indexLink);
+        crawler.linkPool.add(indexLink);
+        crawler.crawlerWebsite();
     }
 
     private void crawlerWebsite() {
         while (!linkPool.isEmpty()) {
             String link = linkPool.removeFirst();
-            if (isVisitedContainLink(link)) {
+            if (hasFilterLinkPool(link)) {
                 System.out.printf("已访问: %s\n", link);
                 continue;
             }
-            visitedLinkPool.add(link);
-            if (!isNewsLink(link) && !isEntryLink(link)) {
+            filterLinkPool.add(link);
+            if (!isNewsLink(link) && !isIndexLink(link)) {
                 System.out.printf("不符合要求的链接: %s\n", link);
                 continue;
             }
-            link = checkLinkAndBack(link);
-            visitLinkThenSaveOtherLinkOrSaveContent(link);
+            link = getCorrectSpellLink(link);
+            Document html = getHtmlDocument(link);
+            storeInsertDatabaseIfLinkIsNews(html, link);
+            storeInsertLinkPoolIfLinkIsWant(html.select("a[href]"));
+            awaitTime();
         }
     }
 
-    private void visitLinkThenSaveOtherLinkOrSaveContent(String link) {
+    private static void awaitTime() {
+        try {
+            System.out.print("歇息3s \n");
+            Thread.sleep(3000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private Document getHtmlDocument(String link) {
         CloseableHttpClient httpclient = HttpClients.createDefault();
         HttpGet require = new HttpGet(link);
         require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
         System.out.printf("开始访问link: %s \n", link);
         try (CloseableHttpResponse response = httpclient.execute(require);) {
             HttpEntity entity = response.getEntity();
-            Document html = Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
-            saveContentIfPageIsNews(html, link);
-            appendLinkToLinkPool(html.select("a"));
-            System.out.print("歇息3s \n");
-            Thread.sleep(3000);
-        } catch (IOException | InterruptedException e) {
+            return Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
+        } catch (IOException e) {
             throw new RuntimeException(e);
         }
     }
 
-    private void saveContentIfPageIsNews(Document html, String link) {
+    private void storeInsertDatabaseIfLinkIsNews(Document html, String link) {
         if (html.selectFirst("#content > article .entry-title") != null) {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
@@ -75,16 +82,13 @@ public class Crawler {
         }
     }
 
-    private void appendLinkToLinkPool(Elements aTags) {
-        for (Element aTag : aTags) {
-            String link = aTag.attr("href");
-            if (isNewsLink(link) && !isVisitedContainLink(link) && !isPoolContainLink(link)) {
-                linkPool.add(link);
-            }
-        }
+    private void storeInsertLinkPoolIfLinkIsWant(Elements aTags) {
+        aTags.stream().map(aTag -> aTag.attr("href"))
+                .filter(link -> isNewsLink(link) && !hasFilterLinkPool(link) && !hasLinkPool(link))
+                .forEach(linkPool::add);
     }
 
-    private String checkLinkAndBack(String link) {
+    private String getCorrectSpellLink(String link) {
         if (link.startsWith("//")) {
             link = "https:" + link;
         }
@@ -95,14 +99,14 @@ public class Crawler {
         return link.contains("sina.com.hk") && link.contains("news");
     }
 
-    private boolean isEntryLink(String link) {
-        return entryLink.equals(link);
+    private boolean isIndexLink(String link) {
+        return indexLink.equals(link);
     }
 
-    private boolean isVisitedContainLink(String link) {
-        return visitedLinkPool.contains(link);
+    private boolean hasFilterLinkPool(String link) {
+        return filterLinkPool.contains(link);
     }
-    private boolean isPoolContainLink(String link) {
+    private boolean hasLinkPool(String link) {
         return linkPool.contains(link);
     }
 
