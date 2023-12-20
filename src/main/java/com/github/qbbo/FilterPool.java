@@ -12,4 +12,8 @@ public class FilterPool extends OperateDB{
         String sql = "select link from filter_pool where link = ?";
         return super.has(connection, sql, link);
     }
+    public Integer count(Connection connection) {
+        String sql = "select count(link) as count from filter_pool";
+        return super.count(connection, sql);
+    }
 }

@@ -33,5 +33,16 @@ public class OperateDB {
             throw new RuntimeException(e);
         }
     }
+    public Integer count(Connection connection, String sql) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt("count");
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
 }

@@ -25,30 +25,23 @@ import java.sql.SQLException;
 import java.util.Properties;
 
 public class Crawler {
-    private final String indexLink;
     private LinkPool linkPool;
     private FilterPool filterPool;
     private News news;
     Connection connection;
 
-    private Crawler(String indexLink) {
-        this.indexLink = indexLink;
-    }
-    public static void start(String indexLink) {
+    public static void start() {
         ReadContext dbConfig = JsonPath.parse(readDBConfig("./db.config.json"));
         Properties properties = new Properties();
         properties.put("user", dbConfig.read("$.user"));
         properties.put("password", dbConfig.read("$.password"));
         try (Connection connection = new Driver().connect(dbConfig.read("$.jdbc"), properties);) {
-            Crawler crawler = new Crawler(indexLink);
+            Crawler crawler = new Crawler();
             crawler.connection = connection;
             crawler.linkPool = new LinkPool();
             crawler.filterPool = new FilterPool();
             crawler.news = new News();
 
-            if (crawler.linkPool.getFirst(connection) == null) {
-                crawler.linkPool.insert(connection, indexLink);
-            }
             crawler.crawlerWebsite();
         } catch (SQLException e) {
             throw new RuntimeException(e);
@@ -65,13 +58,14 @@ public class Crawler {
 
     private void crawlerWebsite() {
         String link;
+        boolean isIndexLink = isFirstStart();
         while ((link = linkPool.removeFirst(connection)) != null) {
             if (hasFilterLinkPool(link)) {
                 System.out.printf("已访问: %s%n", link);
                 continue;
             }
             filterPool.insert(connection, link);
-            if (!isNewsLink(link) && !isIndexLink(link)) {
+            if (!isNewsLink(link) && !isIndexLink) {
                 System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
             }
@@ -81,6 +75,10 @@ public class Crawler {
             storeInsertLinkPoolIfLinkIsWant(html.select("a[href]"));
             awaitTime();
         }
+    }
+
+    private boolean isFirstStart() {
+        return linkPool.count(connection) == 1 && filterPool.count(connection) == 0;
     }
 
     private static void awaitTime() {
@@ -136,10 +134,6 @@ public class Crawler {
 
     private boolean isNewsLink(String link) {
         return link.contains("sina.com.hk") && link.contains("news");
-    }
-
-    private boolean isIndexLink(String link) {
-        return indexLink.equals(link);
     }
 
     private boolean hasFilterLinkPool(String link) {

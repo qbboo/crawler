@@ -29,5 +29,9 @@ public class LinkPool extends OperateDB {
         String sql = "delete from link_pool where link = ?";
         super.update(connection, sql, link);
     }
+    public Integer count(Connection connection) {
+        String sql = "select count(link) as count from link_pool";
+        return super.count(connection, sql);
+    }
 
 }
