@@ -29,6 +29,7 @@ public class Crawler {
     private LinkPool linkPool;
     private FilterPool filterPool;
     private News news;
+    Connection connection;
 
     private Crawler(String indexLink) {
         this.indexLink = indexLink;
@@ -40,12 +41,13 @@ public class Crawler {
         properties.put("password", dbConfig.read("$.password"));
         try (Connection connection = new Driver().connect(dbConfig.read("$.jdbc"), properties);) {
             Crawler crawler = new Crawler(indexLink);
-            crawler.linkPool = new LinkPool(connection);
-            crawler.filterPool = new FilterPool(connection);
-            crawler.news = new News(connection);
+            crawler.connection = connection;
+            crawler.linkPool = new LinkPool();
+            crawler.filterPool = new FilterPool();
+            crawler.news = new News();
 
-            if (crawler.linkPool.isEmpty()) {
-                crawler.linkPool.insert(indexLink);
+            if (crawler.linkPool.getFirst(connection) == null) {
+                crawler.linkPool.insert(connection, indexLink);
             }
             crawler.crawlerWebsite();
         } catch (SQLException e) {
@@ -62,13 +64,13 @@ public class Crawler {
     }
 
     private void crawlerWebsite() {
-        while (!linkPool.isEmpty()) {
-            String link = linkPool.removeFirst();
+        String link;
+        while ((link = linkPool.removeFirst(connection)) != null) {
             if (hasFilterLinkPool(link)) {
                 System.out.printf("已访问: %s%n", link);
                 continue;
             }
-            filterPool.insert(link);
+            filterPool.insert(connection, link);
             if (!isNewsLink(link) && !isIndexLink(link)) {
                 System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
@@ -112,7 +114,7 @@ public class Crawler {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
 
-            news.insert(title, content, link);
+            news.insert(connection, title, content, link);
 
             System.out.printf("新闻标题：%s %n", title);
             System.out.printf("新闻内容：%s %n", content);
@@ -120,9 +122,9 @@ public class Crawler {
     }
 
     private void storeInsertLinkPoolIfLinkIsWant(Elements aTags) {
-        aTags.stream().map(aTag -> aTag.attr("href"))
+         aTags.stream().map(aTag -> aTag.attr("href"))
                 .filter(link -> isNewsLink(link) && !hasFilterLinkPool(link) && !hasLinkPool(link))
-                .forEach(linkPool::insert);
+                .forEach(link -> linkPool.insert(connection, link));
     }
 
     private String getCorrectSpellLink(String link) {
@@ -141,10 +143,10 @@ public class Crawler {
     }
 
     private boolean hasFilterLinkPool(String link) {
-        return filterPool.has(link);
+        return filterPool.has(connection, link);
     }
     private boolean hasLinkPool(String link) {
-        return linkPool.has(link);
+        return linkPool.has(connection, link);
     }
 
 }

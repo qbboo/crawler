@@ -1,32 +1,15 @@
 package com.github.qbbo;
 
 import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 
-public class FilterPool {
-    Connection connection;
+public class FilterPool extends OperateDB{
 
-    public FilterPool(Connection connection) {
-        this.connection = connection;
-    }
-
-    public void insert(String link) {
+    public void insert(Connection connection, String link) {
         String sql = "insert into filter_pool (link) values (?);";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, link);
-            statement.execute();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        super.update(connection, sql, link);
     }
-    public boolean has(String link) {
+    public boolean has(Connection connection, String link) {
         String sql = "select link from filter_pool where link = ?";
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, link);
-            return statement.executeQuery().next();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
+        return super.has(connection, sql, link);
     }
 }
