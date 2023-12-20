@@ -34,3 +34,4 @@
 ## 参考文章
 - [how-to-write-better-git-commit-messages](https://www.freecodecamp.org/news/how-to-write-better-git-commit-messages/)
 - [SpotBugs Security: High level issues](https://docs.embold.io/spotbugs-security-high-level-issues/)
+- [Data access object (DAO) in Java](https://stackoverflow.com/questions/19154202/data-access-object-dao-in-java)
