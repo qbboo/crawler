@@ -153,6 +153,25 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <plugin>
+                <groupId>org.flywaydb</groupId>
+                <artifactId>flyway-maven-plugin</artifactId>
+                <version>8.2.0</version>
+                <configuration>
+                    <url>jdbc:mysql://xx.xxx.xxx.x/db</url>
+                    <user>xxxx</user>
+                    <password>xxxxxx</password>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>database-setup</id>
+                        <phase>initialize</phase>
+                        <goals>
+                            <goal>migrate</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
     </build>
 </project>
