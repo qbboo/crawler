@@ -1,9 +1,13 @@
 package com.github.qbbo;
 
+import com.jayway.jsonpath.JsonPath;
+import com.jayway.jsonpath.ReadContext;
+import com.mysql.cj.jdbc.Driver;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
+import org.apache.http.client.utils.URIBuilder;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
@@ -12,35 +16,63 @@ import org.jsoup.nodes.Document;
 import org.jsoup.select.Elements;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.Set;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Properties;
 
 public class Crawler {
-    private final LinkedList<String> linkPool = new LinkedList<>();
-    private final Set<String> filterLinkPool = new HashSet<>();
     private final String indexLink;
+    private LinkPool linkPool;
+    private FilterPool filterPool;
+    private News news;
+    Connection connection;
 
     private Crawler(String indexLink) {
         this.indexLink = indexLink;
     }
     public static void start(String indexLink) {
-        Crawler crawler = new Crawler(indexLink);
-        crawler.linkPool.add(indexLink);
-        crawler.crawlerWebsite();
+        ReadContext dbConfig = JsonPath.parse(readDBConfig("./db.config.json"));
+        Properties properties = new Properties();
+        properties.put("user", dbConfig.read("$.user"));
+        properties.put("password", dbConfig.read("$.password"));
+        try (Connection connection = new Driver().connect(dbConfig.read("$.jdbc"), properties);) {
+            Crawler crawler = new Crawler(indexLink);
+            crawler.connection = connection;
+            crawler.linkPool = new LinkPool();
+            crawler.filterPool = new FilterPool();
+            crawler.news = new News();
+
+            if (crawler.linkPool.getFirst(connection) == null) {
+                crawler.linkPool.insert(connection, indexLink);
+            }
+            crawler.crawlerWebsite();
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    private static String readDBConfig(String file) {
+        try {
+            return  new String(Files.readAllBytes(Paths.get(file)), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void crawlerWebsite() {
-        while (!linkPool.isEmpty()) {
-            String link = linkPool.removeFirst();
+        String link;
+        while ((link = linkPool.removeFirst(connection)) != null) {
             if (hasFilterLinkPool(link)) {
-                System.out.printf("已访问: %s\n", link);
+                System.out.printf("已访问: %s%n", link);
                 continue;
             }
-            filterLinkPool.add(link);
+            filterPool.insert(connection, link);
             if (!isNewsLink(link) && !isIndexLink(link)) {
-                System.out.printf("不符合要求的链接: %s\n", link);
+                System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
             }
             link = getCorrectSpellLink(link);
@@ -62,13 +94,17 @@ public class Crawler {
 
     private Document getHtmlDocument(String link) {
         CloseableHttpClient httpclient = HttpClients.createDefault();
-        HttpGet require = new HttpGet(link);
-        require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
-        System.out.printf("开始访问link: %s \n", link);
-        try (CloseableHttpResponse response = httpclient.execute(require);) {
-            HttpEntity entity = response.getEntity();
-            return Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
-        } catch (IOException e) {
+        try {
+            HttpGet require = new HttpGet(new URIBuilder(link).build().toString());
+            require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
+            System.out.printf("开始访问link: %s %n", link);
+            try (CloseableHttpResponse response = httpclient.execute(require);) {
+                HttpEntity entity = response.getEntity();
+                return Jsoup.parse(EntityUtils.toString(entity, StandardCharsets.UTF_8));
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        } catch (URISyntaxException e) {
             throw new RuntimeException(e);
         }
     }
@@ -77,15 +113,18 @@ public class Crawler {
         if (html.selectFirst("#content > article .entry-title") != null) {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
-            System.out.printf("新闻标题：%s \n", title);
-            System.out.printf("新闻内容：%s \n", content);
+
+            news.insert(connection, title, content, link);
+
+            System.out.printf("新闻标题：%s %n", title);
+            System.out.printf("新闻内容：%s %n", content);
         }
     }
 
     private void storeInsertLinkPoolIfLinkIsWant(Elements aTags) {
-        aTags.stream().map(aTag -> aTag.attr("href"))
+         aTags.stream().map(aTag -> aTag.attr("href"))
                 .filter(link -> isNewsLink(link) && !hasFilterLinkPool(link) && !hasLinkPool(link))
-                .forEach(linkPool::add);
+                .forEach(link -> linkPool.insert(connection, link));
     }
 
     private String getCorrectSpellLink(String link) {
@@ -104,10 +143,10 @@ public class Crawler {
     }
 
     private boolean hasFilterLinkPool(String link) {
-        return filterLinkPool.contains(link);
+        return filterPool.has(connection, link);
     }
     private boolean hasLinkPool(String link) {
-        return linkPool.contains(link);
+        return linkPool.has(connection, link);
     }
 
 }
