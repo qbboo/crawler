@@ -20,14 +20,15 @@
   "password": "xxx"
 }
 ```
-爬取可以断点续传。
+## 功能点
+ - [x] 可以断点续爬。
 ## 数据库
 ### 表设计
 table `link_pool`
 
 |名| 类型        | 不是null             | 键  | 默认值   | 自增长                |
 |-|-----------|--------------------|----|-------|--------------------|
-|id| biting    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
+|id| bitint    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
 |link| text      | :heavy_check_mark: |    |       |                    |
 |created_at| timestamp |                    |    | Now() |                    |
 |updated_at| timestamp |                    |    | Now() |                    |
@@ -36,7 +37,7 @@ table `filter_pool`
 
 |名| 类型        | 不是null             | 键  | 默认值   | 自增长                |
 |-|-----------|--------------------|----|-------|--------------------|
-|id| biting    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
+|id| bitint    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
 |link| text      | :heavy_check_mark: |    |       |                    |
 |created_at| timestamp |                    |    | Now() |                    |
 |updated_at| timestamp |                    |    | Now() |                    |
@@ -45,7 +46,7 @@ table `news`
 
 |名|类型| 不是null             | 键  | 默认值   | 自增长                |
 |-|-|--------------------|----|-------|--------------------|
-|id|biting| :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
+|id|bitint| :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
 |title|text| :heavy_check_mark: |    |       |                    |
 |content|text| :heavy_check_mark: |    |       |                    |
 |link|text| :heavy_check_mark: |    |       |                    |
