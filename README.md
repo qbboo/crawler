@@ -7,11 +7,12 @@
 - PR
 - test
 - SpotBugs
+- flywaydb
 ## 思路
 ### 需求分析
 ![](https://cdn.jsdelivr.net/gh/qbboo/picture@main/uPic/2023_12_18_57UFqpZouPl4.png)
 ## 用法
-用这个启动爬虫项目 `Crawler.start("https://portal.sina.com.hk/")`，每次爬取停3s防止封ip。
+用这个启动爬虫项目 `Crawler.start()`，每次爬取停3s防止封ip。
 使用数据库存储数据，项目中建 `db.config.json` 文件。文件格式如下：
 ```json
 {
@@ -22,37 +23,13 @@
 ```
 ## 功能点
  - [x] 可以断点续爬。
+ - [x] 自动创建数据表和初始化数据
 ## 数据库
 ### 表设计
-table `link_pool`
-
-|名| 类型        | 不是null             | 键  | 默认值   | 自增长                |
-|-|-----------|--------------------|----|-------|--------------------|
-|id| bitint    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
-|link| text      | :heavy_check_mark: |    |       |                    |
-|created_at| timestamp |                    |    | Now() |                    |
-|updated_at| timestamp |                    |    | Now() |                    |
-
-table `filter_pool`
-
-|名| 类型        | 不是null             | 键  | 默认值   | 自增长                |
-|-|-----------|--------------------|----|-------|--------------------|
-|id| bitint    | :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
-|link| text      | :heavy_check_mark: |    |       |                    |
-|created_at| timestamp |                    |    | Now() |                    |
-|updated_at| timestamp |                    |    | Now() |                    |
-
-table `news`
-
-|名|类型| 不是null             | 键  | 默认值   | 自增长                |
-|-|-|--------------------|----|-------|--------------------|
-|id|bitint| :heavy_check_mark: | 主键 |       | :heavy_check_mark: |
-|title|text| :heavy_check_mark: |    |       |                    |
-|content|text| :heavy_check_mark: |    |       |                    |
-|link|text| :heavy_check_mark: |    |       |                    |
-|created_at|timestamp|                    |    | Now() |                    |
-|updated_at|timestamp|                    |    | Now() |                    |
-
+文件 `src/main/resources/db/migration/V1__Create_table.sql` 里已创建相关表
+### 初始数据
+文件 `src/main/resources/db/migration/V1.1__Initialization_data.sql` 插入初始化数据
+执行 `mvn flyway:migrate` 会自动创建表和数据
 
 ## 参考文章
 - [how-to-write-better-git-commit-messages](https://www.freecodecamp.org/news/how-to-write-better-git-commit-messages/)
