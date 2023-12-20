@@ -1,8 +1,5 @@
 package com.github.qbbo;
 
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.ReadContext;
-import com.mysql.cj.jdbc.Driver;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -18,69 +15,37 @@ import org.jsoup.select.Elements;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Properties;
 
 public class Crawler {
-    private final String indexLink;
-    private LinkPool linkPool;
-    private FilterPool filterPool;
-    private News news;
-    Connection connection;
+    CrawlerDAO dao = new JdbcCrawlerDAO();
 
-    private Crawler(String indexLink) {
-        this.indexLink = indexLink;
-    }
-    public static void start(String indexLink) {
-        ReadContext dbConfig = JsonPath.parse(readDBConfig("./db.config.json"));
-        Properties properties = new Properties();
-        properties.put("user", dbConfig.read("$.user"));
-        properties.put("password", dbConfig.read("$.password"));
-        try (Connection connection = new Driver().connect(dbConfig.read("$.jdbc"), properties);) {
-            Crawler crawler = new Crawler(indexLink);
-            crawler.connection = connection;
-            crawler.linkPool = new LinkPool();
-            crawler.filterPool = new FilterPool();
-            crawler.news = new News();
-
-            if (crawler.linkPool.getFirst(connection) == null) {
-                crawler.linkPool.insert(connection, indexLink);
-            }
-            crawler.crawlerWebsite();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    private static String readDBConfig(String file) {
-        try {
-            return  new String(Files.readAllBytes(Paths.get(file)), StandardCharsets.UTF_8);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    public static void start() {
+        Crawler crawler = new Crawler();
+        crawler.crawlerWebsite();
     }
 
     private void crawlerWebsite() {
         String link;
-        while ((link = linkPool.removeFirst(connection)) != null) {
-            if (hasFilterLinkPool(link)) {
+        boolean isIndexLink = isFirstStart();
+        while ((link = dao.removeFirst()) != null) {
+            if (dao.hasFilterPool(link)) {
                 System.out.printf("已访问: %s%n", link);
                 continue;
             }
-            filterPool.insert(connection, link);
-            if (!isNewsLink(link) && !isIndexLink(link)) {
+            dao.insertFilterPool(link);
+            if (!isNewsLink(link) && !isIndexLink) {
                 System.out.printf("不符合要求的链接: %s%n", link);
                 continue;
             }
-            link = getCorrectSpellLink(link);
             Document html = getHtmlDocument(link);
             storeInsertDatabaseIfLinkIsNews(html, link);
             storeInsertLinkPoolIfLinkIsWant(html.select("a[href]"));
             awaitTime();
         }
+    }
+
+    private boolean isFirstStart() {
+        return dao.countLinkPool() == 1 && dao.countFilterPool() == 0;
     }
 
     private static void awaitTime() {
@@ -93,8 +58,8 @@ public class Crawler {
     }
 
     private Document getHtmlDocument(String link) {
-        CloseableHttpClient httpclient = HttpClients.createDefault();
         try {
+            CloseableHttpClient httpclient = HttpClients.createDefault();
             HttpGet require = new HttpGet(new URIBuilder(link).build().toString());
             require.setHeader(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36");
             System.out.printf("开始访问link: %s %n", link);
@@ -114,7 +79,7 @@ public class Crawler {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
 
-            news.insert(connection, title, content, link);
+            dao.insertNews(title, content, link);
 
             System.out.printf("新闻标题：%s %n", title);
             System.out.printf("新闻内容：%s %n", content);
@@ -123,8 +88,9 @@ public class Crawler {
 
     private void storeInsertLinkPoolIfLinkIsWant(Elements aTags) {
          aTags.stream().map(aTag -> aTag.attr("href"))
-                .filter(link -> isNewsLink(link) && !hasFilterLinkPool(link) && !hasLinkPool(link))
-                .forEach(link -> linkPool.insert(connection, link));
+                 .filter(link -> isNewsLink(link) && !dao.hasFilterPool(link) && !dao.hasLinkPool(link))
+                 .map(this::getCorrectSpellLink)
+                 .forEach(link -> dao.insertLinkPool(link));
     }
 
     private String getCorrectSpellLink(String link) {
@@ -137,16 +103,4 @@ public class Crawler {
     private boolean isNewsLink(String link) {
         return link.contains("sina.com.hk") && link.contains("news");
     }
-
-    private boolean isIndexLink(String link) {
-        return indexLink.equals(link);
-    }
-
-    private boolean hasFilterLinkPool(String link) {
-        return filterPool.has(connection, link);
-    }
-    private boolean hasLinkPool(String link) {
-        return linkPool.has(connection, link);
-    }
-
 }
