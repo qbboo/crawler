@@ -162,15 +162,15 @@
                     <user>xxxx</user>
                     <password>xxxxxx</password>
                 </configuration>
-                <executions>
-                    <execution>
-                        <id>database-setup</id>
-                        <phase>initialize</phase>
-                        <goals>
-                            <goal>migrate</goal>
-                        </goals>
-                    </execution>
-                </executions>
+<!--                <executions>-->
+<!--                    <execution>-->
+<!--                        <id>database-setup</id>-->
+<!--                        <phase>initialize</phase>-->
+<!--                        <goals>-->
+<!--                            <goal>migrate</goal>-->
+<!--                        </goals>-->
+<!--                    </execution>-->
+<!--                </executions>-->
             </plugin>
         </plugins>
     </build>
