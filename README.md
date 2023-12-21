@@ -8,6 +8,7 @@
 - test
 - SpotBugs
 - flywaydb
+- mybatis
 ## 思路
 ### 需求分析
 ![](https://cdn.jsdelivr.net/gh/qbboo/picture@main/uPic/2023_12_18_57UFqpZouPl4.png)
@@ -28,8 +29,11 @@
 ### 表设计
 文件 `src/main/resources/db/migration/V1__Create_table.sql` 里已创建相关表
 ### 初始数据
-文件 `src/main/resources/db/migration/V1.1__Initialization_data.sql` 插入初始化数据
+文件 `src/main/resources/db/migration/V1_1__Initial_Setup.sql` 插入初始化数据
 执行 `mvn flyway:migrate` 会自动创建表和数据
+### MyBatis
+文件 `src/main/resources/db/mybatis/config.xml` 配置数据库和映射文件
+文件 `src/main/resources/db/mybatis/MyMapper.xml` 放入相关数据库操作
 
 ## 参考文章
 - [how-to-write-better-git-commit-messages](https://www.freecodecamp.org/news/how-to-write-better-git-commit-messages/)

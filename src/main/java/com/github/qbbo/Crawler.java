@@ -17,7 +17,7 @@ import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
 public class Crawler {
-    CrawlerDAO dao = new JdbcCrawlerDAO();
+    CrawlerDAO dao = new MyBatisCrawlerDAO();
 
     public static void start() {
         Crawler crawler = new Crawler();
@@ -78,6 +78,9 @@ public class Crawler {
         if (html.selectFirst("#content > article .entry-title") != null) {
             String title = html.selectFirst("#content > article .entry-title").text();
             String content = html.selectFirst("#content > article .entry-content").text();
+            if ("".equals(content)) {
+                content = html.selectFirst("#content > article .entry-content").html();
+            }
 
             dao.insertNews(title, content, link);
 

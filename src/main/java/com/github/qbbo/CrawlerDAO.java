@@ -2,9 +2,9 @@ package com.github.qbbo;
 
 public interface CrawlerDAO {
     void update(String sql, String link);
-    boolean has(String sql, String link);
     String select(String sql);
     Integer count(String sql);
+    Integer count(String sql, String link);
 
     void insertNews (String title, String content, String link);
     void insertFilterPool(String link);
