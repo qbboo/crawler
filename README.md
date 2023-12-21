@@ -13,7 +13,12 @@
 ### 需求分析
 ![](https://cdn.jsdelivr.net/gh/qbboo/picture@main/uPic/2023_12_18_57UFqpZouPl4.png)
 ## 用法
-用这个启动爬虫项目 `Crawler.start()`，每次爬取停3s防止封ip。
+```java
+    CrawlerDAO dao = new MyBatisCrawlerDAO();
+    for (int i = 0; i < 6; i++) {
+        new Thread(new Crawler(dao)).start();
+    }
+```
 使用数据库存储数据，项目中建 `db.config.json` 文件。文件格式如下：
 ```json
 {
