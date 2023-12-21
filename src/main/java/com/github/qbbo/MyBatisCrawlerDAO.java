@@ -93,7 +93,7 @@ public final class MyBatisCrawlerDAO implements CrawlerDAO{
     }
 
     @Override
-    public String removeFirst() {
+    public synchronized String removeFirst() {
         String link = select("com.github.qbbo.MyMapper.selectFirstLink");
         if (link != null) {
             removeLinkPool(link);
