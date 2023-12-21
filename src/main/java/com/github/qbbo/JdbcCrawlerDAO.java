@@ -45,15 +45,6 @@ public final class JdbcCrawlerDAO implements CrawlerDAO {
         }
     }
     @Override
-    public boolean has(String sql, String link) {
-        try (PreparedStatement statement = connection.prepareStatement(sql)) {
-            statement.setString(1, link);
-            return statement.executeQuery().next();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        }
-    }
-    @Override
     public String select(String sql) {
         try (PreparedStatement statement = connection.prepareStatement(sql)) {
             ResultSet resultSet = statement.executeQuery();
@@ -77,6 +68,21 @@ public final class JdbcCrawlerDAO implements CrawlerDAO {
             throw new RuntimeException(e);
         }
     }
+
+    @Override
+    public Integer count(String sql, String link) {
+        try (PreparedStatement statement = connection.prepareStatement(sql)) {
+            statement.setString(1, link);
+            ResultSet resultSet = statement.executeQuery();
+            if (resultSet.next()) {
+                return resultSet.getInt("count");
+            }
+            return null;
+        } catch (SQLException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     @Override
     public void insertNews (String title, String content, String link) {
         String sql = "insert into news (title, content, link) values ( ?, ?, ? )";
@@ -97,8 +103,8 @@ public final class JdbcCrawlerDAO implements CrawlerDAO {
     }
     @Override
     public boolean hasFilterPool(String link) {
-        String sql = "select link from filter_pool where link = ?";
-        return has(sql, link);
+        String sql = "select count(link) as count from filter_pool where link = ?";
+        return count(sql, link) > 0;
     }
     @Override
     public Integer countFilterPool() {
@@ -109,8 +115,8 @@ public final class JdbcCrawlerDAO implements CrawlerDAO {
 
     @Override
     public boolean hasLinkPool(String link) {
-        String sql = "select link from link_pool where link = ?";
-        return has(sql, link);
+        String sql = "select count(link) as count from link_pool where link = ?";
+        return count(sql, link) > 0;
     }
     @Override
     public void insertLinkPool(String link) {
@@ -134,10 +140,10 @@ public final class JdbcCrawlerDAO implements CrawlerDAO {
     }
     @Override
     public String removeFirst() {
-        String first = getFirstLinkPool();
-        if (first != null) {
-            removeLinkPool(first);
-            return first;
+        String link = getFirstLinkPool();
+        if (link != null) {
+            removeLinkPool(link);
+            return link;
         }
         return null;
     }
