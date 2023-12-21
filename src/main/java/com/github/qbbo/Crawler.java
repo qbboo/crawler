@@ -1,5 +1,6 @@
 package com.github.qbbo;
 
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpHeaders;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -16,12 +17,16 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.nio.charset.StandardCharsets;
 
-public class Crawler {
-    CrawlerDAO dao = new MyBatisCrawlerDAO();
+public class Crawler extends Thread {
+    CrawlerDAO dao;
 
-    public static void start() {
-        Crawler crawler = new Crawler();
-        crawler.crawlerWebsite();
+    @SuppressFBWarnings("EI_EXPOSE_REP2")
+    public Crawler(CrawlerDAO dao) {
+        this.dao = dao;
+    }
+    @Override
+    public void run() {
+        crawlerWebsite();
     }
 
     private void crawlerWebsite() {
@@ -40,7 +45,6 @@ public class Crawler {
             Document html = getHtmlDocument(link);
             storeInsertDatabaseIfLinkIsNews(html, link);
             storeInsertLinkPoolIfLinkIsWant(html.select("a[href]"));
-            awaitTime();
         }
     }
 
@@ -48,14 +52,6 @@ public class Crawler {
         return dao.countLinkPool() == 1 && dao.countFilterPool() == 0;
     }
 
-    private static void awaitTime() {
-        try {
-            System.out.print("歇息3s \n");
-            Thread.sleep(3000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
-    }
 
     private Document getHtmlDocument(String link) {
         try {
