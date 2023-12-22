@@ -7,6 +7,6 @@
         insert into news (title, content, link, created_at, updated_at) values (#{title}, #{content}, #{link}, #{createdAt}, #{updatedAt})
     </insert>
     <select id="selectNews" resultType="com.github.qbbo.News">
-        select title, content, link, created_at, updated_at from news
+        select id, title, content, link, created_at, updated_at from news
     </select>
 </mapper>
